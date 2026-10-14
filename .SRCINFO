@@ -1,0 +1,32 @@
+pkgbase = exolve-messenger-bin
+	pkgdesc = Corporate messenger for MTS Exolve virtual PBX (repackaged official Astra Linux .deb)
+	pkgver = 4.6.0
+	pkgrel = 1
+	url = https://vpbxdocs.exolve.ru/messenger_overview
+	arch = x86_64
+	license = LicenseRef-proprietary
+	depends = alsa-lib
+	depends = at-spi2-core
+	depends = gtk3
+	depends = libcups
+	depends = libnotify
+	depends = libxcomposite
+	depends = libxdamage
+	depends = libxkbcommon
+	depends = libxrandr
+	depends = mesa
+	depends = nss
+	depends = xdg-utils
+	optdepends = xorg-xwayland: default X11 mode under a Wayland compositor (xwayland-satellite on niri)
+	optdepends = xdg-desktop-portal: file dialogs and screen sharing
+	provides = exolve-messenger
+	conflicts = exolve-messenger
+	noextract = exolve-messenger-4.6.0.deb
+	options = !strip
+	options = !debug
+	source = exolve-messenger-4.6.0.deb::https://communicator.vats.exolve.ru/communicator4/linux_x64/latest?filetype=deb
+	source = exolve-messenger.sh
+	sha256sums = 0b5d6df83e95de7a45c681753de174cbd3afac79a8d07d98ec1817535f24e33b
+	sha256sums = 709af67db75efb175d020709143cfd091348e97de1a707ab1f75c8c4cb20fedd
+
+pkgname = exolve-messenger-bin

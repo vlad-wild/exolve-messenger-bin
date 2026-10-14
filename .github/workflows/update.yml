@@ -1,0 +1,51 @@
+name: Update to latest upstream version
+
+on:
+  schedule:
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    steps:
+      - name: Install tools
+        run: pacman -Syu --noconfirm --needed git pacman-contrib
+
+      - uses: actions/checkout@v4
+
+      # makepkg refuses to run as root
+      - name: Prepare build user
+        run: |
+          useradd -m builder
+          chown -R builder: "$GITHUB_WORKSPACE"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Bump PKGBUILD
+        id: bump
+        run: |
+          touch "$GITHUB_OUTPUT"
+          chmod 666 "$GITHUB_OUTPUT"
+          su builder -c "GITHUB_OUTPUT='$GITHUB_OUTPUT' ./bump"
+
+      # Make sure the new .deb still repackages cleanly before committing
+      - name: Build package
+        if: steps.bump.outputs.version != ''
+        run: su builder -c 'makepkg --nodeps --noconfirm'
+
+      - name: Commit and push
+        if: steps.bump.outputs.version != ''
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add PKGBUILD .SRCINFO
+          git commit -m "Update to ${{ steps.bump.outputs.version }}"
+          git push

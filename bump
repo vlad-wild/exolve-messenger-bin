@@ -1,0 +1,27 @@
+#!/bin/sh
+# Checks the upstream "latest" build and, if it is newer, updates pkgver,
+# resets pkgrel, refreshes checksums and .SRCINFO.
+set -eu
+cd "$(dirname "$0")"
+
+url='https://communicator.vats.exolve.ru/communicator4/linux_x64/latest?filetype=deb'
+latest=$(curl -fsSI --connect-timeout 20 --max-time 60 --retry 3 --retry-all-errors "$url" | sed -n "s/.*filename\*=UTF-8''exolve-messenger-x64-\(.*\)\.deb.*/\1/p" | tr -d '\r')
+current=$(sed -n 's/^pkgver=//p' PKGBUILD)
+
+if [ -z "$latest" ]; then
+  echo "could not read the upstream version" >&2
+  exit 1
+fi
+
+if [ "$latest" = "$current" ]; then
+  echo "up to date: $current"
+  exit 0
+fi
+
+echo "$current -> $latest"
+# CI reads this to name the commit
+[ -n "${GITHUB_OUTPUT:-}" ] && echo "version=$latest" >> "$GITHUB_OUTPUT"
+sed -i -e "s/^pkgver=.*/pkgver=$latest/" -e 's/^pkgrel=.*/pkgrel=1/' PKGBUILD
+updpkgsums
+makepkg --printsrcinfo > .SRCINFO
+echo "done; now: makepkg -si && git commit -am 'Update to $latest'"
