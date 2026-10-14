@@ -1,10 +1,11 @@
 pkgbase = exolve-messenger-bin
 	pkgdesc = Corporate messenger for MTS Exolve virtual PBX (repackaged official Astra Linux .deb)
 	pkgver = 4.6.0
-	pkgrel = 1
+	pkgrel = 2
 	url = https://vpbxdocs.exolve.ru/messenger_overview
 	arch = x86_64
 	license = LicenseRef-proprietary
+	makedepends = python
 	depends = alsa-lib
 	depends = at-spi2-core
 	depends = gtk3
@@ -26,7 +27,9 @@ pkgbase = exolve-messenger-bin
 	options = !debug
 	source = exolve-messenger-4.6.0.deb::https://communicator.vats.exolve.ru/communicator4/linux_x64/latest?filetype=deb
 	source = exolve-messenger.sh
+	source = fix-asar.py
 	sha256sums = 0b5d6df83e95de7a45c681753de174cbd3afac79a8d07d98ec1817535f24e33b
 	sha256sums = 709af67db75efb175d020709143cfd091348e97de1a707ab1f75c8c4cb20fedd
+	sha256sums = 50d79f8263504fab9bdb764cb2806c4da57c42be31e0bc12bd52e554045f6164
 
 pkgname = exolve-messenger-bin
