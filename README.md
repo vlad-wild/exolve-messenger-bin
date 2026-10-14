@@ -7,7 +7,7 @@ PKGBUILD для Arch Linux: [Мессенджер Exolve](https://vpbxdocs.exolv
 ## Установка
 
 ```sh
-git clone https://github.com/<user>/exolve-messenger-bin.git
+git clone https://github.com/vlad-wild/exolve-messenger-bin.git
 cd exolve-messenger-bin
 makepkg -si
 ```
