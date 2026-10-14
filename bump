@@ -19,8 +19,6 @@ if [ "$latest" = "$current" ]; then
 fi
 
 echo "$current -> $latest"
-# CI reads this to name the commit
-[ -n "${GITHUB_OUTPUT:-}" ] && echo "version=$latest" >> "$GITHUB_OUTPUT"
 sed -i -e "s/^pkgver=.*/pkgver=$latest/" -e 's/^pkgrel=.*/pkgrel=1/' PKGBUILD
 updpkgsums
 makepkg --printsrcinfo > .SRCINFO
