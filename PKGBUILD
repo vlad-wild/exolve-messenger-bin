@@ -2,8 +2,8 @@
 
 pkgname=exolve-messenger-bin
 _pkgname=exolve-messenger
-pkgver=4.6.0
-pkgrel=2
+pkgver=4.6.2
+pkgrel=1
 pkgdesc="Corporate messenger for MTS Exolve virtual PBX (repackaged official Astra Linux .deb)"
 arch=('x86_64')
 url="https://vpbxdocs.exolve.ru/messenger_overview"
@@ -36,9 +36,9 @@ source=("$_pkgname-$pkgver.deb::https://communicator.vats.exolve.ru/communicator
         "$_pkgname.sh"
         "fix-asar.py")
 noextract=("$_pkgname-$pkgver.deb")
-sha256sums=('0b5d6df83e95de7a45c681753de174cbd3afac79a8d07d98ec1817535f24e33b'
+sha256sums=('7f8b4da152b1944066b0aff20efbe68d0bca0790638f0503ade477e602832694'
             '709af67db75efb175d020709143cfd091348e97de1a707ab1f75c8c4cb20fedd'
-            '50d79f8263504fab9bdb764cb2806c4da57c42be31e0bc12bd52e554045f6164')
+            'f4dc7e02e519fe762ea7a3f5c01bdb3b314d912e09e3eb285cf00f0dfb0e6afa')
 
 prepare() {
   mkdir -p deb

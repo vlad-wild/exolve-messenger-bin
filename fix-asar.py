@@ -11,29 +11,47 @@
    Electron binary itself, so launching from the menu skips /usr/bin's wrapper
    and its X11 default. Point Exec at the wrapper instead.
 
+Bundle file names carry content hashes and minified identifiers change between
+builds, so each fix is a regex searched across all of the app's own .js files
+and must match exactly once overall; otherwise nothing is written.
+
 Each patched file keeps its length, so no offsets in the archive move; its
 integrity hashes in the header are refreshed (hex digests, same length too).
-The minified names are build-specific: a new upstream build fails loudly here.
 
 Usage: python3 fix-asar.py path/to/app.asar
 """
 import hashlib
 import json
+import re
 import struct
 import sys
 
-FIXES = {
-    '.vite/renderer/assets/sentry-renderer-DsYx9lPP.js': [
-        ('send:(t,...n)=>{window.isElectron&&window.ipcRenderer&&!e.deviceInformation.isClosing&&',
-         'send:(t,...n)=>{window.ipcRenderer&&!e.deviceInformation?.isClosing&&'),
-        ('invoke:async(t,...n)=>{if(window.isElectron&&window.ipcRenderer&&!e.deviceInformation.isClosing)',
-         'invoke:async(t,...n)=>{if(window.ipcRenderer&&!e.deviceInformation?.isClosing)'),
-    ],
-    '.vite/build/main.js': [
-        ('function Vc(e){let t=process.execPath;return process.env.APPIMAGE?t=`"${process.env.APPIMAGE}" --no-sandbox`:u.app.isPackaged&&(t=u.app.getPath(`exe`)),e&&(t+=` ${aA}`),t}',
-         'function Vc(e){let t=`/usr/bin/exolve-messenger`;return e&&(t+=` ${aA}`),t}'),
-    ],
-}
+ID = rb'([\w$]+)'
+
+FIXES = [
+    ('send() guard',
+     rb'send:\(' + ID + rb',\.\.\.' + ID + rb'\)=>\{window\.isElectron&&window\.ipcRenderer&&!'
+     + ID + rb'\.deviceInformation\.isClosing&&',
+     rb'send:(\1,...\2)=>{window.ipcRenderer&&!\3.deviceInformation?.isClosing&&'),
+    ('invoke() guard',
+     rb'invoke:async\(' + ID + rb',\.\.\.' + ID + rb'\)=>\{if\(window\.isElectron&&window\.ipcRenderer&&!'
+     + ID + rb'\.deviceInformation\.isClosing\)',
+     rb'invoke:async(\1,...\2)=>{if(window.ipcRenderer&&!\3.deviceInformation?.isClosing)'),
+    ('desktop entry Exec',
+     rb'function ' + ID + rb'\(' + ID + rb'\)\{let ' + ID + rb'=process\.execPath;'
+     rb'return process\.env\.APPIMAGE\?\3=`"\$\{process\.env\.APPIMAGE\}" --no-sandbox`:'
+     + ID + rb'\.app\.isPackaged&&\(\3=\4\.app\.getPath\(`exe`\)\),\2&&\(\3\+=` \$\{' + ID + rb'\}`\),\3\}',
+     rb'function \1(\2){let \3=`/usr/bin/exolve-messenger`;return \2&&(\3+=` ${\5}`),\3}'),
+]
+
+
+def walk(node, prefix=''):
+    for name, child in node.get('files', {}).items():
+        path = f'{prefix}/{name}' if prefix else name
+        if 'files' in child:
+            yield from walk(child, path)
+        else:
+            yield path, child
 
 
 def main(path):
@@ -45,41 +63,43 @@ def main(path):
             sys.exit('asar header does not round-trip through json, refusing to patch')
         base = 8 + header_buf_size
 
-        patched = []
-        for target, fixes in FIXES.items():
-            node = header
-            for part in target.split('/'):
-                node = node['files'][part]
-            off, size = base + int(node['offset']), node['size']
-            f.seek(off)
-            data = f.read(size)
+        files = {}
+        for name, node in walk(header):
+            if name.startswith('node_modules/') or not name.endswith('.js') or 'offset' not in node:
+                continue
+            f.seek(base + int(node['offset']))
+            files[name] = (node, f.read(node['size']))
 
-            for old, new in fixes:
-                old, new = old.encode(), new.encode()
-                if data.count(old) != 1:
-                    sys.exit(f'{target}: pattern not found exactly once (new upstream build?): {old[:40]!r}')
-                data = data.replace(old, new.ljust(len(old), b' '))
+        changed = {}
+        for label, pattern, repl in FIXES:
+            hits = [(name, m) for name, (_, data) in files.items()
+                    for m in re.finditer(pattern, changed.get(name, data))]
+            if len(hits) != 1:
+                sys.exit(f'{label}: expected exactly 1 match, found {len(hits)} (new upstream build?)')
+            name, m = hits[0]
+            new = m.expand(repl)
+            if len(new) > len(m.group(0)):
+                sys.exit(f'{label}: replacement is longer than the original')
+            data = changed.get(name, files[name][1])
+            changed[name] = data[:m.start()] + new.ljust(len(m.group(0)), b' ') + data[m.end():]
+            print(f'{label}: {name}')
 
-            integrity = node['integrity']
+        for name, data in changed.items():
+            integrity = files[name][0]['integrity']
             block_size = integrity['blockSize']
             integrity['hash'] = hashlib.sha256(data).hexdigest()
             integrity['blocks'] = [hashlib.sha256(data[i:i + block_size]).hexdigest()
                                    for i in range(0, len(data), block_size)]
-            patched.append((off, data))
-
         new_raw = json.dumps(header, separators=(',', ':'), ensure_ascii=False).encode()
         if len(new_raw) != len(header_raw):
             sys.exit('asar header length changed, refusing to patch')
 
-        # Write only once every pattern matched, so a failure leaves the file intact
-        for off, data in patched:
-            f.seek(off)
+        # Write only once every fix matched, so a failure leaves the file intact
+        for name, data in changed.items():
+            f.seek(base + int(files[name][0]['offset']))
             f.write(data)
         f.seek(16)
         f.write(new_raw)
-
-    for target in FIXES:
-        print(f'patched {target}')
 
 
 if __name__ == '__main__':
